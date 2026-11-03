@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#000000">
-<title>Poonam: slides 1 and 2</title>
+<title>Happy Birthday, Poonam 💗</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
@@ -1618,6 +1618,57 @@ function loadClip(shot,k,n){
   if(v.readyState>=2)go();else v.oncanplay=()=>{v.oncanplay=null;if(shot.classList.contains("on"))go()};
 }
 const vo=document.getElementById("vo");
+/* =================== THE ONE AND ONLY MUSIC CONTROLLER ===================
+   Every play / pause / seek / rate change of #music goes through here. Set DEBUG=true (or add ?debug to the URL) to log them. */
+const Music={
+  DEBUG:/[?&]debug\b/.test(location.search),
+  el:document.getElementById("music"),
+  started:false,   /* has actually started playing at least once */
+  starting:false,  /* a start attempt is in flight */
+  unlocked:false,
+  attached:false,  /* following the film clock */
+  offset:0,        /* song seconds minus film seconds */
+  quietUntil:0,    /* no drift correction before this time */
+  buffering:false,
+  rate:1,
+  log(action,info){if(this.DEBUG)console.log("%c[Music] "+action,"color:#FF6F9A",Object.assign({t:+this.el.currentTime.toFixed(2)},info||{}))},
+  quiet(){this.quietUntil=performance.now()+4000},
+  /* first start, from 0:00. Never restarts once started or while a start is in flight. */
+  start(reason){if(this.started||this.starting)return Promise.resolve(this.started);
+    const m=this.el;this.starting=true;m.loop=true;m.volume=.7;m.muted=vo.muted;
+    if(m.currentTime>0){try{m.currentTime=0}catch(e){}}
+    this.log("play",{reason,from:0});this.quiet();
+    const pr=m.play();
+    const ok=()=>{this.starting=false;this.started=true;if(this.attached){this.offset=m.currentTime-filmPos()/1000}this.log("started",{reason});document.dispatchEvent(new Event("music-started"));return true};
+    const fail=e=>{this.starting=false;this.log("play blocked",{reason,err:e&&e.name});return false};
+    return pr&&pr.then?pr.then(ok,fail):Promise.resolve(ok())},
+  /* iPhone: a muted play/pause inside a tap unlocks later playback. Only if the song has never started. */
+  unlock(reason){if(this.started||this.starting||this.unlocked)return;const m=this.el;this.unlocked=true;
+    this.log("unlock",{reason});try{m.muted=true;const pr=m.play();m.pause();const um=()=>{m.muted=vo.muted};if(pr&&pr.then)pr.then(um,um);else um()}catch(e){m.muted=vo.muted}},
+  dur(){const d=this.el.duration;return d&&isFinite(d)?d:0},
+  /* the film starts: keep the song exactly where it is and remember the offset */
+  attach(filmSec,reason){if(!this.started&&!this.starting)this.start(reason);
+    this.offset=(this.started?this.el.currentTime:0)-filmSec;this.attached=true;this.quiet();this.log("attach",{reason,filmSec:+filmSec.toFixed(2),offset:+this.offset.toFixed(2)})},
+  target(filmSec){const d=this.dur();if(!d)return null;return(((filmSec+this.offset)%d)+d)%d},
+  /* hard seek: only for explicit user actions (timeline, episodes, prev/next, skip, replay) or big drift */
+  seekToFilm(filmSec,reason){if(!this.attached)return;const t=this.target(filmSec);if(t==null)return;
+    this.setRate(1,"seek");try{this.el.currentTime=t}catch(e){}this.quiet();this.log("seek",{reason,to:+t.toFixed(2),filmSec:+filmSec.toFixed(2)});
+    if(this.el.paused&&!isPaused)this.resume(reason)},
+  pause(reason){if(!this.started||this.el.paused)return;this.el.pause();this.log("pause",{reason})},
+  resume(reason){if(!this.started){this.start(reason);return}if(!this.el.paused)return;this.quiet();this.log("play",{reason});this.el.play().catch(e=>this.log("play blocked",{reason,err:e&&e.name}))},
+  setMuted(v){this.el.muted=v;this.log(v?"mute":"unmute")},
+  setRate(r,reason){if(this.rate===r)return;this.rate=r;this.el.playbackRate=r;this.log("rate",{rate:r,reason})},
+  /* soft sync: nudge playbackRate for small drift, hard-seek only above 2s */
+  tick(filmSec){const m=this.el,d=this.dur();
+    if(!this.attached||!this.started||!d||m.paused||this.buffering||performance.now()<this.quietUntil)return;
+    let drift=m.currentTime-this.target(filmSec);if(drift>d/2)drift-=d;if(drift<-d/2)drift+=d;
+    const a=Math.abs(drift);
+    if(a>2){this.seekToFilm(filmSec,"drift "+drift.toFixed(2)+"s");return}
+    if(a>.3)this.setRate(drift>0?.97:1.03,"drift "+drift.toFixed(2)+"s");
+    else if(a<.08)this.setRate(1,"in sync")}
+};
+Music.el.addEventListener("waiting",()=>{Music.buffering=true;Music.log("buffering")});
+Music.el.addEventListener("playing",()=>{if(Music.buffering){Music.buffering=false;Music.quiet();Music.log("buffered")}});
 const CHAPTERS=["The girl who glows","Ajji's girl","First love","Her strength","Happy birthday"];
 let soundOn=false;
 const timers=FILM.map(()=>[]),played=FILM.map(()=>false);
@@ -1637,10 +1688,10 @@ function tickProgress(){
 function togglePause(){
   if(playingSlide<0)return;
   const sec=document.getElementById(FILM[playingSlide].el);
-  if(!isPaused){isPaused=true;pauseStarted=performance.now();pauseTimers(playingSlide);vo.pause();if("speechSynthesis" in window)speechSynthesis.pause();sec.style.setProperty("--ps","paused");sec.classList.add("paused");sec.querySelectorAll(".clip,video.memv").forEach(v=>v.pause());document.getElementById("music").pause();setPP(true)}
-  else{isPaused=false;pausedTotal+=performance.now()-pauseStarted;resumeTimers(playingSlide);sec.classList.remove("paused");sec.querySelectorAll(".shot.on.hasvid .clip,.shot.on video.memv").forEach(v=>v.play().catch(()=>{}));syncSong(true);if(soundOn)vo.play().catch(()=>{});if("speechSynthesis" in window)speechSynthesis.resume();setPP(false);tickProgress()}
+  if(!isPaused){isPaused=true;pauseStarted=performance.now();pauseTimers(playingSlide);vo.pause();if("speechSynthesis" in window)speechSynthesis.pause();sec.style.setProperty("--ps","paused");sec.classList.add("paused");sec.querySelectorAll(".clip,video.memv").forEach(v=>v.pause());Music.pause("film paused");setPP(true)}
+  else{isPaused=false;pausedTotal+=performance.now()-pauseStarted;resumeTimers(playingSlide);sec.classList.remove("paused");sec.querySelectorAll(".shot.on.hasvid .clip,.shot.on video.memv").forEach(v=>v.play().catch(()=>{}));Music.resume("film resumed");if(soundOn)vo.play().catch(()=>{});if("speechSynthesis" in window)speechSynthesis.resume();setPP(false);tickProgress()}
 }
-function toggleMute(){vo.muted=!vo.muted;document.getElementById("music").muted=vo.muted;TTS.muted=vo.muted;if(vo.muted&&"speechSynthesis" in window)speechSynthesis.cancel();setMute(vo.muted)}
+function toggleMute(){vo.muted=!vo.muted;Music.setMuted(vo.muted);TTS.muted=vo.muted;if(vo.muted&&"speechSynthesis" in window)speechSynthesis.cancel();setMute(vo.muted)}
 const ICON={play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15L19.5 12z"/></svg>',pause:'<svg viewBox="0 0 24 24"><path d="M6.5 5h4v14h-4zM13.5 5h4v14h-4z"/></svg>',
   vol:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a4.5 4.5 0 0 1 0 7l-1.2-1.4a2.7 2.7 0 0 0 0-4.2zM18.3 5.8a8 8 0 0 1 0 12.4l-1.2-1.4a6.2 6.2 0 0 0 0-9.6z"/></svg>',
   muted:'<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM15.6 9.0l1.4-1.4 2.4 2.4 2.4-2.4 1.4 1.4-2.4 2.4 2.4 2.4-1.4 1.4-2.4-2.4-2.4 2.4-1.4-1.4 2.4-2.4z"/></svg>',
@@ -1731,15 +1782,11 @@ function renderTime(){
   document.getElementById("prevBtn").disabled=cur<=0;document.getElementById("nextBtn").disabled=cur>=FILM.length-1;
   slideLabel.textContent=CHAPTERS[cur]+" · "+(cur+1)+"/"+FILM.length;
   const pos=filmPos();timeLabel.textContent=fmt(pos)+" / "+fmt(FILM_TOTAL);if(!dragging)setBar(pos)}
+timeLabel.textContent="0:00 / "+fmt(FILM_TOTAL);
 CH_OFF.slice(1).forEach(o=>{const t=document.createElement("i");t.className="pTick";t.style.left=(o/FILM_TOTAL*100)+"%";progressWrap.insertBefore(t,progressThumb)});
 /* the song follows the film: song time = film time % song length */
-const music=document.getElementById("music");
-function syncSong(force){if(!soundOn||!music.duration||!isFinite(music.duration))return;
-  const target=(filmPos()/1000)%music.duration;
-  if(force||Math.abs(music.currentTime-target)>.4){try{music.currentTime=target}catch(e){}}
-  if(isPaused||playingSlide<0&&cur===FILM.length-1&&chapterElapsed()>=CH_LEN[cur]){if(isPaused)music.pause();return}
-  if(music.paused)music.play().then(()=>{music.dataset.on="1"}).catch(()=>{})}
-setInterval(()=>{if(soundOn&&playingSlide>=0&&!isPaused&&!dragging)syncSong(false)},2000);
+function syncSong(force,reason){if(force)Music.seekToFilm(filmPos()/1000,reason||"user action")}
+setInterval(()=>{if(soundOn&&playingSlide>=0&&!isPaused&&!dragging)Music.tick(filmPos()/1000)},1000);
 /* stop everything the old chapter was doing */
 function stopChapter(i){clearTimers(i);const sec=document.getElementById(FILM[i].el);sec.classList.remove("active","paused");
   sec.querySelectorAll("video").forEach(v=>{try{v.pause()}catch(e){}});if(playingSlide===i){frozenEl=chapterElapsed();playingSlide=-1}}
@@ -1750,15 +1797,15 @@ function switchTo(i,fromBase=0,forceSong=true){if(i<0||i>=FILM.length)return;clo
   fader.classList.add("on");
   setTimeout(()=>{if(tok!==swTok)return;
     if(old!==i){document.getElementById(FILM[old].el).classList.remove("cur");freeSlide(old,true)}
-    play(i,fromBase);syncSong(forceSong);
+    play(i,fromBase);syncSong(forceSong,"chapter "+(i+1));
     const reveal=()=>{if(tok===swTok)fader.classList.remove("on")};requestAnimationFrame(()=>requestAnimationFrame(reveal));setTimeout(reveal,450)},300)}
-function goTo(i,fromBase=0){if(i===cur&&document.getElementById(FILM[i].el).classList.contains("cur")){play(i,fromBase);syncSong(true)}else switchTo(i,fromBase,true)}
+function goTo(i,fromBase=0){if(i===cur&&document.getElementById(FILM[i].el).classList.contains("cur")){play(i,fromBase);syncSong(true,"replay/seek in chapter")}else switchTo(i,fromBase,true)}
 function curSlide(){return cur}
 function goSlide(i){if(i<0||i>=FILM.length)return;switchTo(i,0,true)}
 function nextScene(){const i=cur,f=FILM[i];if(playingSlide<0){goSlide(i+1);return}
   const now=isPaused?pauseStarted:performance.now(),elapsed=(now-slideStart-pausedTotal)/PACE;
   const nx=f.tl.find(([t,a])=>a.shot&&t>elapsed+300);
-  if(nx){play(i,nx[0]);syncSong(true)}else goSlide(i+1)}
+  if(nx){play(i,nx[0]);syncSong(true,"skip scene")}else goSlide(i+1)}
 document.getElementById("nextBtn").onclick=()=>goSlide(cur+1);
 document.getElementById("prevBtn").onclick=()=>goSlide(Math.max(0,cur-1));
 document.getElementById("sideNext").onclick=()=>goSlide(cur+1);
@@ -1787,18 +1834,13 @@ document.getElementById("epBtn").onclick=()=>document.body.classList.contains("e
 document.getElementById("epClose").onclick=closeEp;document.getElementById("epBack").onclick=closeEp;
 document.getElementById("letterBtn").onclick=()=>{document.getElementById("letter").classList.add("open");if(playingSlide>=0&&!isPaused)togglePause()};
 document.getElementById("letterClose").onclick=()=>document.getElementById("letter").classList.remove("open");
-/* the song: from 2:14, begins with the final section */
-const MUSIC_START=0;
-document.getElementById("music").addEventListener("ended",e=>{e.target.currentTime=MUSIC_START;e.target.play().catch(()=>{})});
-/* the song starts on the welcome page: autoplay if allowed, otherwise on her first tap / key anywhere */
+/* the song starts on the welcome page: autoplay once, otherwise on her first tap / key anywhere */
 (function(){
-  const m=document.getElementById("music"),hint=document.getElementById("musicHint"),EV=["pointerdown","touchstart","keydown","click"];
-  function started(){m.dataset.on="1";EV.forEach(e=>document.removeEventListener(e,onFirst,true));if(hint)hint.classList.remove("show")}
-  function begin(){if(m.dataset.on==="1")return Promise.resolve();m.muted=vo.muted;m.volume=.7;try{m.currentTime=MUSIC_START}catch(e){}
-    const pr=m.play();return pr&&pr.then?pr.then(started):(started(),Promise.resolve())}
-  function onFirst(){begin().catch(()=>{})}
+  const hint=document.getElementById("musicHint"),EV=["pointerdown","touchstart","keydown","click"];
+  function onFirst(){Music.start("first tap")}
+  document.addEventListener("music-started",()=>{EV.forEach(e=>document.removeEventListener(e,onFirst,true));if(hint)hint.classList.remove("show")});
   EV.forEach(e=>document.addEventListener(e,onFirst,true));
-  begin().catch(()=>{if(m.dataset.on!=="1"&&hint)hint.classList.add("show")});
+  Music.start("autoplay").then(ok=>{if(!ok&&!Music.started&&hint)hint.classList.add("show")});
 })();
 /* ---------- welcome: countdown to 12:00 AM IST on 3 November (never locks), password, candles, confetti ---------- */
 (function(){
@@ -1819,12 +1861,12 @@ document.getElementById("music").addEventListener("ended",e=>{e.target.currentTi
   function tryIt(){const v=$("gIn").value.replace(/\D/g,"");if(!v){$("gErr").textContent="Enter your birthdate.";return}
     if(!PW.includes(v)){$("gErr").textContent="Not quite. Day, month, then year.";return}
     /* unlock audio on this tap so the song can start later */
-    const mu=$("music");if(mu.dataset.on!=="1"){try{mu.muted=true;const pr=mu.play();mu.pause();const um=()=>{mu.muted=vo.muted};if(pr&&pr.then)pr.then(um,um);else um()}catch(e){mu.muted=vo.muted}}
+    Music.unlock("password tap");
     $("intro").classList.add("blown");setTimeout(burst,350);setTimeout(burst,1500);
     setTimeout(()=>$("start").click(),4200)}
   $("gOk").onclick=tryIt;$("gIn").addEventListener("keydown",e=>{if(e.key==="Enter")tryIt()});$("gIn").addEventListener("input",()=>$("gErr").textContent="");
 })();
-document.getElementById("start").onclick=()=>{soundOn=true;{const m=document.getElementById("music");if(m.dataset.on!=="1"){m.muted=vo.muted;m.volume=.7;m.play().then(()=>{m.dataset.on="1"}).catch(()=>{})}}document.body.classList.add("playing");if("speechSynthesis" in window){const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}document.getElementById("intro").classList.add("gone");startFx();play(0);syncSong(true)};
+document.getElementById("start").onclick=()=>{soundOn=true;document.body.classList.add("playing");if("speechSynthesis" in window){const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}document.getElementById("intro").classList.add("gone");startFx();play(0);Music.attach(filmPos()/1000,"film start")};
 
 /* clean start: always at the top, then reveal the welcome page once fonts are ready */
 scrollTo(0,0);document.getElementById("deck").scrollTop=0;
