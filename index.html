@@ -595,7 +595,7 @@ html.m .memBg{filter:blur(16px) brightness(.55) saturate(1.3)}
 <button class="navArrow" id="sideNext" type="button" aria-label="Next slide">›</button>
 <div id="letter" role="dialog" aria-label="My letter to you"><button id="letterClose" type="button">Close ✕</button><img src="letter/p-1.jpg" alt="Letter page 1" loading="lazy"><img src="letter/p-2.jpg" alt="Letter page 2" loading="lazy"><img src="letter/p-3.jpg" alt="Letter page 3" loading="lazy"><img src="letter/p-4.jpg" alt="Letter page 4" loading="lazy"><img src="letter/p-5.jpg" alt="Letter page 5" loading="lazy"><img src="letter/p-6.jpg" alt="Letter page 6" loading="lazy"></div>
 <audio id="vo" preload="auto"></audio>
-<audio id="music" src="audio/music.mp3" preload="auto"></audio>
+<audio id="music" src="audio/music.mp3" preload="auto" loop></audio>
 
 <script>
 try{history.scrollRestoration="manual"}catch(e){}
@@ -1667,6 +1667,9 @@ const Music={
     if(a>.3)this.setRate(drift>0?.97:1.03,"drift "+drift.toFixed(2)+"s");
     else if(a<.08)this.setRate(1,"in sync")}
 };
+/* loop from 0:00 at the end (the loop attribute does this; this is a fallback for browsers that fire "ended") */
+Music.el.addEventListener("ended",()=>{const m=Music.el;try{m.currentTime=0}catch(e){}Music.quiet();Music.log("loop",{reason:"ended"});if(!isPaused)m.play().catch(()=>{})});
+Music.el.addEventListener("durationchange",()=>Music.log("duration",{seconds:+Music.dur().toFixed(2)}));
 Music.el.addEventListener("waiting",()=>{Music.buffering=true;Music.log("buffering")});
 Music.el.addEventListener("playing",()=>{if(Music.buffering){Music.buffering=false;Music.quiet();Music.log("buffered")}});
 const CHAPTERS=["The girl who glows","Ajji's girl","First love","Her strength","Happy birthday"];
