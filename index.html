@@ -15,8 +15,9 @@
 :root{--serif:"Shippori Mincho","Yu Mincho",Georgia,serif;--hand:"Caveat","Segoe Script",cursive;--paper:#FFF8F0;--bar:max(7vh,calc(56px + env(safe-area-inset-bottom,0px)))}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:#000;color:var(--paper);font-family:var(--serif);overflow:hidden}
-#deck{height:100vh;height:100dvh;height:var(--app-h,100dvh);overflow-y:scroll;scroll-snap-type:y mandatory}
-.slide{position:relative;height:100vh;height:100dvh;height:var(--app-h,100dvh);scroll-snap-align:start;overflow:hidden;background:#000}
+#deck{position:relative;height:100vh;height:100dvh;height:var(--app-h,100dvh);overflow:hidden}
+.slide{display:none;position:relative;height:100vh;height:100dvh;height:var(--app-h,100dvh);overflow:hidden;background:#000}
+.slide.cur{display:block}
 .shot{display:none;position:absolute;inset:0;opacity:0;z-index:0;transition:opacity 2.4s cubic-bezier(.4,0,.2,1)}
 .shot.pre,.shot.on,.shot.leaving{display:block}
 .shot.on{opacity:1;z-index:2}
@@ -436,10 +437,34 @@ html,body{height:100%;background:#000;color:var(--paper);font-family:var(--serif
 #controls{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;height:var(--bar);padding:0 12px env(safe-area-inset-bottom,0px);box-sizing:border-box;
   background:linear-gradient(to top,rgba(0,0,0,.92) 0%,rgba(0,0,0,.6) 55%,rgba(0,0,0,0) 100%);font-family:var(--serif);color:#fff;transition:opacity .45s ease}
 #controls.idle{opacity:0;pointer-events:none}
-#progressWrap{width:100%;height:3px;background:rgba(255,255,255,.22);border-radius:2px;overflow:hidden;margin-top:6px;transition:height .2s}
-#controls:hover #progressWrap{height:5px}
+#progressWrap{position:relative;width:100%;height:12px;cursor:pointer;touch-action:none;flex:0 0 12px}
+#progressTrack{position:absolute;left:0;right:0;top:50%;height:3px;margin-top:-1.5px;background:rgba(255,255,255,.22);border-radius:2px;overflow:hidden;transition:height .15s,margin-top .15s}
+#progressWrap:hover #progressTrack,#progressWrap.drag #progressTrack{height:5px;margin-top:-2.5px}
+.pTick{position:absolute;top:50%;width:2px;height:7px;margin:-3.5px 0 0 -1px;background:rgba(255,255,255,.55);border-radius:1px;pointer-events:none}
+#progressThumb{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#FFD98A;box-shadow:0 0 0 3px rgba(255,217,138,.25);transform:scale(0);transition:transform .15s;pointer-events:none}
+#progressWrap:hover #progressThumb,#progressWrap.drag #progressThumb{transform:scale(1)}
+#seekTip{position:absolute;bottom:18px;transform:translateX(-50%);padding:3px 8px;border-radius:6px;background:rgba(10,6,26,.92);border:1px solid rgba(255,255,255,.15);font-size:12px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s}
+#progressWrap.drag #seekTip{opacity:1}
+#timeLabel{margin-left:10px;font-size:13px;opacity:.85;white-space:nowrap;font-variant-numeric:tabular-nums}
+#fader{position:fixed;inset:0;background:#000;z-index:15;opacity:0;pointer-events:none;transition:opacity .3s ease}
+#fader.on{opacity:1}
+#epBack{position:fixed;inset:0;z-index:49;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .25s}
+#epPanel{position:fixed;right:16px;bottom:calc(var(--bar) + 12px);z-index:50;width:min(340px,calc(100vw - 32px));max-height:calc(var(--app-h,100dvh) - var(--bar) - 40px);overflow-y:auto;padding:14px 10px 10px;border-radius:16px;background:rgba(18,11,34,.94);border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 60px rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#fff;font-family:var(--serif);opacity:0;transform:translateY(10px) scale(.98);pointer-events:none;transition:opacity .25s,transform .25s}
+body.ep #epBack{opacity:1;pointer-events:auto}body.ep #epPanel{opacity:1;transform:none;pointer-events:auto}
+.epHead{display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px 10px;font-size:15px;letter-spacing:.08em;opacity:.9}
+.epItem{display:flex;align-items:center;gap:12px;width:100%;padding:10px;border:none;border-radius:10px;background:transparent;color:#fff;font-family:var(--serif);text-align:left;cursor:pointer;transition:background .2s}
+.epItem:hover{background:rgba(255,255,255,.08)}
+.epItem.now{background:linear-gradient(90deg,rgba(255,111,154,.22),rgba(255,210,90,.12))}
+.epNum{flex:0 0 30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;background:rgba(255,255,255,.1)}
+.epItem.now .epNum{background:linear-gradient(135deg,#FF6F9A,#FFD25A);color:#2A1030;font-weight:700}
+.epTitle{flex:1;font-size:15px}.epLen{font-size:12px;opacity:.6;font-variant-numeric:tabular-nums}
+#loader{position:fixed;inset:0;z-index:90;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#FFE7C2;font-family:var(--serif);font-size:14px;letter-spacing:.12em;transition:opacity .6s ease,visibility .6s}
+#loader.done{opacity:0;visibility:hidden}
+#loader .lh{width:28px;height:28px;animation:lhSpin 1.1s cubic-bezier(.5,0,.5,1) infinite}
+#loader .lh svg{width:100%;height:100%;fill:#FF6F9A}
+@keyframes lhSpin{0%{transform:rotateY(0) scale(1)}50%{transform:rotateY(180deg) scale(.85)}100%{transform:rotateY(360deg) scale(1)}}
 #progressFill{height:100%;width:0;background:linear-gradient(90deg,#FF6F9A,#FFD25A)}
-.cbRow{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:2px 0 4px}
+.cbRow{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 0 4px}
 .cbL,.cbR{display:flex;align-items:center;gap:4px;min-width:0}
 .cb{width:40px;height:40px;flex:0 0 40px;border:none;border-radius:50%;background:transparent;color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background .2s,transform .12s,opacity .2s;-webkit-tap-highlight-color:transparent}
 .cb svg{width:22px;height:22px;fill:currentColor;display:block;pointer-events:none}
@@ -449,7 +474,7 @@ html,body{height:100%;background:#000;color:var(--paper);font-family:var(--serif
 .cb:disabled{opacity:.35;cursor:default;background:transparent}
 .cb:focus-visible{outline:2px solid #FFD98A;outline-offset:1px}
 #slideLabel{margin-left:10px;font-size:14px;letter-spacing:.02em;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:640px){#slideLabel{display:none}#controls{padding-left:6px;padding-right:6px}.cbL,.cbR{gap:0}}
+@media (max-width:640px){#slideLabel{display:none}#controls{padding-left:6px;padding-right:6px}.cbL,.cbR{gap:0}.cb{width:36px;height:36px;flex-basis:36px}#timeLabel{margin-left:6px;font-size:12px}}
 #soundNote{color:#FFD98A}
 .grain{animation:none}
 .slide.active .grain{animation:grain 1s steps(6) infinite}
@@ -508,8 +533,9 @@ html.m .memBg{filter:blur(16px) brightness(.55) saturate(1.3)}
   :root{--bar:max(40px,calc(38px + env(safe-area-inset-bottom,0px)))}
   .sub{bottom:calc(var(--bar) + 2.5vh)}
   .sub p{font-size:16px;line-height:1.4}
-  #progressWrap{margin-top:2px}
-  .cbRow{padding:1px 0 1px}
+  #progressWrap{margin-top:-6px}
+  .cbRow{padding:0}
+  #timeLabel{font-size:12px}
   .cb{width:34px;height:34px;flex-basis:34px}
   .cb svg{width:19px;height:19px}.cb.big svg{width:23px;height:23px}
   #slideLabel{font-size:12px}
@@ -517,6 +543,8 @@ html.m .memBg{filter:blur(16px) brightness(.55) saturate(1.3)}
 </style>
 </head>
 <body>
+<div id="loader" role="status" aria-label="Loading"><div class="lh" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.3C1 8.4 3 5 6.4 5c2 0 3.4 1.1 4.1 2.3h3C14.2 6.1 15.6 5 17.6 5 21 5 23 8.4 21.6 11.7 19.5 16.4 12 21 12 21z"/></svg></div>Loading…</div>
+<div id="fader" aria-hidden="true"></div>
 <div id="intro">
   <div id="musicHint" aria-hidden="true">Tap anywhere for music ♪</div>
   <canvas id="confetti" aria-hidden="true"></canvas>
@@ -542,18 +570,21 @@ html.m .memBg{filter:blur(16px) brightness(.55) saturate(1.3)}
 </div>
 <div id="rotate" role="dialog" aria-label="Turn your phone sideways"><div class="ph" aria-hidden="true"></div><div class="rt1">Turn your phone sideways&nbsp;↻</div><div class="rt2">for the full movie</div><button id="rotOk" type="button">Continue in portrait</button></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="epBack"></div>
+<div id="epPanel" role="dialog" aria-label="Episodes"><div class="epHead"><span>Episodes</span><button id="epClose" class="cb" type="button" aria-label="Close episodes"><svg viewBox="0 0 24 24"><path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4 17.6 5 12 10.6z"/></svg></button></div><div id="epList"></div></div>
 <div id="controls" aria-label="Playback controls">
-  <div id="progressWrap" aria-hidden="true"><div id="progressFill"></div></div>
+  <div id="progressWrap" role="slider" aria-label="Film timeline" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div id="progressTrack"><div id="progressFill"></div></div><div id="progressThumb"></div><div id="seekTip">0:00</div></div>
   <div class="cbRow">
     <div class="cbL">
       <button id="prevBtn" class="cb" type="button" aria-label="Previous chapter" title="Previous chapter"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
       <button id="pauseBtn" class="cb big" type="button" aria-label="Pause" title="Pause"><svg viewBox="0 0 24 24"><path d="M6.5 5h4v14h-4zM13.5 5h4v14h-4z"/></svg></button>
       <button id="nextBtn" class="cb" type="button" aria-label="Next chapter" title="Next chapter"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg></button>
       <button id="sceneBtn" class="cb" type="button" aria-label="Skip to next scene" title="Skip scene"><svg viewBox="0 0 24 24"><path d="M3 6v12l8.5-6zM12 6v12l8.5-6z"/></svg></button>
-      <span id="slideLabel">The girl who glows · 1/5</span>
+      <span id="slideLabel">The girl who glows · 1/5</span><span id="timeLabel">0:00 / 0:00</span>
       <span id="soundNote" hidden></span>
     </div>
     <div class="cbR">
+      <button id="epBtn" class="cb" type="button" aria-label="Episodes" title="Episodes" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><path d="M3 5h2.5v2.5H3zM8 5h13v2.5H8zM3 10.75h2.5v2.5H3zM8 10.75h13v2.5H8zM3 16.5h2.5V19H3zM8 16.5h13V19H8z"/></svg></button>
       <button id="replayBtn" class="cb" type="button" aria-label="Replay chapter" title="Replay chapter"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg></button>
       <button id="muteBtn" class="cb" type="button" aria-label="Mute" title="Mute"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a4.5 4.5 0 0 1 0 7l-1.2-1.4a2.7 2.7 0 0 0 0-4.2zM18.3 5.8a8 8 0 0 1 0 12.4l-1.2-1.4a6.2 6.2 0 0 0 0-9.6z"/></svg></button>
       <button id="fsBtn" class="cb" type="button" aria-label="Fullscreen" title="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z"/></svg></button>
@@ -567,6 +598,7 @@ html.m .memBg{filter:blur(16px) brightness(.55) saturate(1.3)}
 <audio id="music" src="audio/music.mp3" preload="auto"></audio>
 
 <script>
+try{history.scrollRestoration="manual"}catch(e){}
 const MOBILE=matchMedia("(max-width:820px), (pointer:coarse)").matches;if(MOBILE)document.documentElement.classList.add("m");
 /* =================== silhouette kit =================== */
 const SIL="#22102A";
@@ -1502,7 +1534,7 @@ function fxLoop(t){
   }
   requestAnimationFrame(fxLoop);
 }
-requestAnimationFrame(fxLoop);
+let fxRunning=false;function startFx(){if(!fxRunning){fxRunning=true;requestAnimationFrame(fxLoop)}}
 /* =================== engine =================== */
 function showShot(sec,k,dur){
   sec.querySelectorAll(".shot").forEach(s=>{
@@ -1556,10 +1588,11 @@ FILM.forEach(f=>{const sec=document.getElementById(f.el);
 /* lazy scenes: only the playing chapter and the next one keep their DOM (saves a lot of memory on phones) */
 function slideShots(i){const f=FILM[i];return f?[...document.getElementById(f.el).querySelectorAll(".shot")]:[]}
 function buildSlide(i){slideShots(i).forEach(d=>{if(!d._built){d.innerHTML=d._html;d._built=true}})}
-function freeSlide(i){slideShots(i).forEach(d=>{if(!d._built||d.classList.contains("on")||d.classList.contains("leaving"))return;
+function freeSlide(i,force){slideShots(i).forEach(d=>{if(!d._built||(!force&&(d.classList.contains("on")||d.classList.contains("leaving"))))return;d.classList.remove("on","leaving");
   d.querySelectorAll("video").forEach(v=>{try{v.pause();v.removeAttribute("src");v.load()}catch(e){}});
   clearTimeout(d._lt);d.classList.remove("hasvid","hasimg","pre");d.innerHTML="";d._built=false})}
-let nearT;function keepNear(i){FILM.forEach((f,j)=>{if(j!==i&&j!==i+1){freeSlide(j);slideShots(j).forEach(d=>d.querySelectorAll("video").forEach(v=>{try{v.pause()}catch(e){}}))}});buildSlide(i);clearTimeout(nearT);if(i+1<FILM.length)nearT=setTimeout(()=>buildSlide(i+1),2500)}
+const idle=window.requestIdleCallback?(f=>requestIdleCallback(f,{timeout:3000})):(f=>setTimeout(f,1200));
+let nearTok=0;function keepNear(i){FILM.forEach((f,j)=>{if(j!==i&&j!==i+1)freeSlide(j,true)});buildSlide(i);const tok=++nearTok;if(i+1<FILM.length)idle(()=>{if(tok===nearTok&&cur===i)buildSlide(i+1)})}
 function loadStill(shot,k,n){
   const img=shot.querySelector(".still"); if(!img) return;
   const list=STILLS[k]; if(!list) return;
@@ -1588,7 +1621,7 @@ const vo=document.getElementById("vo");
 const CHAPTERS=["The girl who glows","Ajji's girl","First love","Her strength","Happy birthday"];
 let soundOn=false;
 const timers=FILM.map(()=>[]),played=FILM.map(()=>false);
-let playingSlide=-1,isPaused=false,slideStart=0,pausedTotal=0,pauseStarted=0;
+let cur=0,playingSlide=-1,isPaused=false,slideStart=0,pausedTotal=0,pauseStarted=0;
 const pauseBtn=document.getElementById("pauseBtn"),muteBtn=document.getElementById("muteBtn"),progressFill=document.getElementById("progressFill"),slideLabel=document.getElementById("slideLabel"),soundNote=document.getElementById("soundNote");
 function showSoundNote(t){soundNote.hidden=false;soundNote.textContent=t}
 vo.addEventListener("playing",()=>{TTS.on=false;if("speechSynthesis" in window)speechSynthesis.cancel()});
@@ -1597,17 +1630,15 @@ function schedule(i,delay,fn){const e={fn,due:performance.now()+delay};e.id=setT
 function pauseTimers(i){const n=performance.now();timers[i].forEach(t=>{clearTimeout(t.id);t.remaining=Math.max(0,t.due-n)})}
 function resumeTimers(i){const n=performance.now();timers[i].forEach(t=>{if(t.remaining==null)return;const r=t.remaining;delete t.remaining;t.due=n+r;t.id=setTimeout(t.fn,r)})}
 function tickProgress(){
-  if(playingSlide<0)return;
-  const f=FILM[playingSlide],el=isPaused?(pauseStarted-slideStart-pausedTotal):(performance.now()-slideStart-pausedTotal);
-  {const c=currentSlide();document.getElementById("prevBtn").disabled=document.getElementById("sidePrev").disabled=c<=0;document.getElementById("nextBtn").disabled=document.getElementById("sideNext").disabled=c>=FILM.length-1;}
-  progressFill.style.width=Math.min(100,el/(f.end*PACE)*100)+"%";slideLabel.textContent=CHAPTERS[playingSlide]+" · "+(playingSlide+1)+"/"+FILM.length;
+  if(playingSlide<0){renderTime();return}
+  renderTime();
   if(!isPaused)requestAnimationFrame(tickProgress);
 }
 function togglePause(){
   if(playingSlide<0)return;
   const sec=document.getElementById(FILM[playingSlide].el);
   if(!isPaused){isPaused=true;pauseStarted=performance.now();pauseTimers(playingSlide);vo.pause();if("speechSynthesis" in window)speechSynthesis.pause();sec.style.setProperty("--ps","paused");sec.classList.add("paused");sec.querySelectorAll(".clip,video.memv").forEach(v=>v.pause());document.getElementById("music").pause();setPP(true)}
-  else{isPaused=false;pausedTotal+=performance.now()-pauseStarted;resumeTimers(playingSlide);sec.classList.remove("paused");sec.querySelectorAll(".shot.on.hasvid .clip,.shot.on video.memv").forEach(v=>v.play().catch(()=>{}));{const m=document.getElementById("music");if(m.dataset.on==="1")m.play().catch(()=>{})}if(soundOn)vo.play().catch(()=>{});if("speechSynthesis" in window)speechSynthesis.resume();setPP(false);tickProgress()}
+  else{isPaused=false;pausedTotal+=performance.now()-pauseStarted;resumeTimers(playingSlide);sec.classList.remove("paused");sec.querySelectorAll(".shot.on.hasvid .clip,.shot.on video.memv").forEach(v=>v.play().catch(()=>{}));syncSong(true);if(soundOn)vo.play().catch(()=>{});if("speechSynthesis" in window)speechSynthesis.resume();setPP(false);tickProgress()}
 }
 function toggleMute(){vo.muted=!vo.muted;document.getElementById("music").muted=vo.muted;TTS.muted=vo.muted;if(vo.muted&&"speechSynthesis" in window)speechSynthesis.cancel();setMute(vo.muted)}
 const ICON={play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15L19.5 12z"/></svg>',pause:'<svg viewBox="0 0 24 24"><path d="M6.5 5h4v14h-4zM13.5 5h4v14h-4z"/></svg>',
@@ -1637,13 +1668,9 @@ try{if(sessionStorage.getItem("rotOk"))document.body.classList.add("rotOk")}catc
 function setAppH(){document.documentElement.style.setProperty("--app-h",window.innerHeight+"px")}
 setAppH();addEventListener("resize",setAppH);addEventListener("orientationchange",()=>{setAppH();setTimeout(setAppH,350)});
 document.addEventListener("fullscreenchange",setFs);document.addEventListener("webkitfullscreenchange",setFs);
-function currentSlide(){const i=FILM.findIndex(f=>Math.abs(document.getElementById(f.el).getBoundingClientRect().top)<innerHeight*.5);return i<0?0:i}
-document.getElementById("nextBtn").onclick=()=>goSlide(currentSlide()+1);
-document.getElementById("sideNext").onclick=()=>goSlide(currentSlide()+1);
-document.getElementById("sidePrev").onclick=()=>goSlide(currentSlide()-1);
-document.getElementById("prevBtn").onclick=()=>goSlide(currentSlide()-1);
+function currentSlide(){return cur}
 pauseBtn.onclick=togglePause;muteBtn.onclick=toggleMute;
-document.getElementById("replayBtn").onclick=()=>{const vis=FILM.findIndex(f=>Math.abs(document.getElementById(f.el).getBoundingClientRect().top)<innerHeight*.5);play(vis<0?0:vis)};
+document.getElementById("replayBtn").onclick=()=>goTo(cur,0);
 document.addEventListener("keydown",e=>{
   if(!soundOn)return;
   if(e.code==="Space"){e.preventDefault();togglePause()}
@@ -1651,6 +1678,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="ArrowRight")nextScene();
   if(e.key==="ArrowDown")goSlide(curSlide()+1);
   if(e.key==="ArrowUp"||e.key==="ArrowLeft")goSlide(Math.max(0,curSlide()-1));
+  if(e.key==="Escape")closeEp();
 });
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&playingSlide>=0&&!isPaused)togglePause()});
 function play(i,fromBase=0){
@@ -1658,8 +1686,8 @@ function play(i,fromBase=0){
   const f=FILM[i],sec=document.getElementById(f.el);
   if(playingSlide>=0&&playingSlide!==i)clearTimers(playingSlide);
   clearTimers(i);
-  sec.className="slide bars active";
-  document.querySelectorAll(".slide").forEach(s=>{if(s!==sec)s.classList.remove("active")});
+  cur=i;sec.className="slide bars active cur";
+  document.querySelectorAll(".slide").forEach(s=>{if(s!==sec)s.classList.remove("active","cur")});
   sec.querySelector(".sub").innerHTML="";
   sec._seen={};sec.querySelectorAll(".shot").forEach(s=>s.classList.remove("on","leaving","pre"));sec.querySelectorAll(".ant").forEach(a=>a.classList.remove("go"));
   const realFrom=fromBase*PACE;
@@ -1685,33 +1713,78 @@ function play(i,fromBase=0){
     }
   })});
   schedule(i,f.end*PACE-realFrom,()=>{
-    sec.classList.add("done");playingSlide=-1;progressFill.style.width="100%";
-    if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
-    if(Math.abs(sec.getBoundingClientRect().top)>innerHeight*.5)return;
-    const nx=document.getElementById(FILM[i+1]?FILM[i+1].el:"");
-    if(nx)document.getElementById("deck").scrollTo({top:nx.offsetTop,behavior:"smooth"});
+    if(i+1<FILM.length){switchTo(i+1,0,false);return}
+    sec.classList.add("done");frozenEl=CH_LEN[i];playingSlide=-1;renderTime();
   });
-  played[i]=true;tickProgress();
+  played[i]=true;tickProgress();renderEp();
 }
 document.querySelectorAll(".replay").forEach(b=>b.onclick=()=>play(+b.dataset.s));
-/* ---------- skip / next / previous ---------- */
-function curSlide(){if(playingSlide>=0)return playingSlide;const v=FILM.findIndex(f=>Math.abs(document.getElementById(f.el).getBoundingClientRect().top)<innerHeight*.5);return v<0?0:v}
-function goSlide(i){if(i<0||i>=FILM.length)return;const c=curSlide();clearTimers(c);if(playingSlide>=0)playingSlide=-1;vo.pause();if("speechSynthesis" in window)speechSynthesis.cancel();isPaused=false;document.querySelectorAll(".slide.paused").forEach(x=>x.classList.remove("paused"));
-  const deck=document.getElementById("deck"),el=document.getElementById(FILM[i].el);deck.style.scrollBehavior="auto";deck.scrollTop=el.offsetTop;deck.style.scrollBehavior="";play(i)}
-function nextScene(){const i=curSlide(),f=FILM[i];if(playingSlide<0){goSlide(i+1);return}
+/* ---------- episode engine: one chapter on screen at a time ---------- */
+const CH_LEN=FILM.map(f=>f.end*PACE),CH_OFF=CH_LEN.map((_,i)=>CH_LEN.slice(0,i).reduce((a,b)=>a+b,0)),FILM_TOTAL=CH_LEN.reduce((a,b)=>a+b,0);
+function fmt(ms){const t=Math.max(0,Math.floor(ms/1000));return Math.floor(t/60)+":"+String(t%60).padStart(2,"0")}
+let frozenEl=0;function chapterElapsed(){if(playingSlide<0)return frozenEl;const n=isPaused?pauseStarted:performance.now();return Math.max(0,Math.min(CH_LEN[cur],n-slideStart-pausedTotal))}
+function filmPos(){return CH_OFF[cur]+chapterElapsed()}
+const progressWrap=document.getElementById("progressWrap"),progressThumb=document.getElementById("progressThumb"),seekTip=document.getElementById("seekTip"),timeLabel=document.getElementById("timeLabel");
+let dragging=false;
+function setBar(ms){const pc=Math.min(100,ms/FILM_TOTAL*100);progressFill.style.width=pc+"%";progressThumb.style.left=pc+"%";progressWrap.setAttribute("aria-valuenow",Math.round(pc))}
+function renderTime(){
+  document.getElementById("prevBtn").disabled=cur<=0;document.getElementById("nextBtn").disabled=cur>=FILM.length-1;
+  slideLabel.textContent=CHAPTERS[cur]+" · "+(cur+1)+"/"+FILM.length;
+  const pos=filmPos();timeLabel.textContent=fmt(pos)+" / "+fmt(FILM_TOTAL);if(!dragging)setBar(pos)}
+CH_OFF.slice(1).forEach(o=>{const t=document.createElement("i");t.className="pTick";t.style.left=(o/FILM_TOTAL*100)+"%";progressWrap.insertBefore(t,progressThumb)});
+/* the song follows the film: song time = film time % song length */
+const music=document.getElementById("music");
+function syncSong(force){if(!soundOn||!music.duration||!isFinite(music.duration))return;
+  const target=(filmPos()/1000)%music.duration;
+  if(force||Math.abs(music.currentTime-target)>.4){try{music.currentTime=target}catch(e){}}
+  if(isPaused||playingSlide<0&&cur===FILM.length-1&&chapterElapsed()>=CH_LEN[cur]){if(isPaused)music.pause();return}
+  if(music.paused)music.play().then(()=>{music.dataset.on="1"}).catch(()=>{})}
+setInterval(()=>{if(soundOn&&playingSlide>=0&&!isPaused&&!dragging)syncSong(false)},2000);
+/* stop everything the old chapter was doing */
+function stopChapter(i){clearTimers(i);const sec=document.getElementById(FILM[i].el);sec.classList.remove("active","paused");
+  sec.querySelectorAll("video").forEach(v=>{try{v.pause()}catch(e){}});if(playingSlide===i){frozenEl=chapterElapsed();playingSlide=-1}}
+/* fade to black, swap chapter, fade back in */
+const fader=document.getElementById("fader");let swTok=0;
+function switchTo(i,fromBase=0,forceSong=true){if(i<0||i>=FILM.length)return;closeEp();
+  const tok=++swTok,old=cur;stopChapter(old);vo.pause();if("speechSynthesis" in window)speechSynthesis.cancel();isPaused=false;
+  fader.classList.add("on");
+  setTimeout(()=>{if(tok!==swTok)return;
+    if(old!==i){document.getElementById(FILM[old].el).classList.remove("cur");freeSlide(old,true)}
+    play(i,fromBase);syncSong(forceSong);
+    const reveal=()=>{if(tok===swTok)fader.classList.remove("on")};requestAnimationFrame(()=>requestAnimationFrame(reveal));setTimeout(reveal,450)},300)}
+function goTo(i,fromBase=0){if(i===cur&&document.getElementById(FILM[i].el).classList.contains("cur")){play(i,fromBase);syncSong(true)}else switchTo(i,fromBase,true)}
+function curSlide(){return cur}
+function goSlide(i){if(i<0||i>=FILM.length)return;switchTo(i,0,true)}
+function nextScene(){const i=cur,f=FILM[i];if(playingSlide<0){goSlide(i+1);return}
   const now=isPaused?pauseStarted:performance.now(),elapsed=(now-slideStart-pausedTotal)/PACE;
   const nx=f.tl.find(([t,a])=>a.shot&&t>elapsed+300);
-  if(nx)play(i,nx[0]);else goSlide(i+1)}
-document.getElementById("nextBtn").onclick=()=>goSlide(curSlide()+1);
-document.getElementById("prevBtn").onclick=()=>{const i=curSlide();goSlide(i>0?i-1:0)};
+  if(nx){play(i,nx[0]);syncSong(true)}else goSlide(i+1)}
+document.getElementById("nextBtn").onclick=()=>goSlide(cur+1);
+document.getElementById("prevBtn").onclick=()=>goSlide(Math.max(0,cur-1));
+document.getElementById("sideNext").onclick=()=>goSlide(cur+1);
+document.getElementById("sidePrev").onclick=()=>goSlide(Math.max(0,cur-1));
 document.getElementById("sceneBtn").onclick=nextScene;
-const io=new IntersectionObserver(es=>es.forEach(e=>{
-  if(!e.isIntersecting||!soundOn)return;
-  const i=FILM.findIndex(f=>f.el===e.target.id);
-  if(played[i])return;
-  if(playingSlide!==-1&&playingSlide!==i)return;
-  play(i);
-}),{threshold:.6});
+document.querySelectorAll(".replay").forEach(b=>b.onclick=()=>goTo(+b.dataset.s,0));
+/* seekable timeline for the whole film */
+function seekFilm(ms){ms=Math.max(0,Math.min(FILM_TOTAL-1,ms));let c=FILM.length-1;for(let k=0;k<FILM.length;k++){if(ms<CH_OFF[k]+CH_LEN[k]){c=k;break}}
+  goTo(c,(ms-CH_OFF[c])/PACE)}
+function msAt(x){const r=progressWrap.getBoundingClientRect();return Math.max(0,Math.min(1,(x-r.left)/r.width))*FILM_TOTAL}
+function showTip(ms){const pc=ms/FILM_TOTAL*100;seekTip.textContent=fmt(ms)+" · "+CHAPTERS[FILM.length-1-[...CH_OFF].reverse().findIndex(o=>ms>=o)];
+  const r=progressWrap.getBoundingClientRect(),w=seekTip.offsetWidth/2,x=Math.max(w,Math.min(r.width-w,pc/100*r.width));seekTip.style.left=x+"px";setBar(ms)}
+let dragMs=0;
+progressWrap.addEventListener("pointerdown",e=>{if(!soundOn)return;e.preventDefault();dragging=true;progressWrap.classList.add("drag");try{progressWrap.setPointerCapture(e.pointerId)}catch(_){}dragMs=msAt(e.clientX);showTip(dragMs)});
+progressWrap.addEventListener("pointermove",e=>{if(!dragging)return;dragMs=msAt(e.clientX);showTip(dragMs)});
+function endDrag(apply){if(!dragging)return;dragging=false;progressWrap.classList.remove("drag");if(apply)seekFilm(dragMs);else renderTime()}
+progressWrap.addEventListener("pointerup",()=>endDrag(true));progressWrap.addEventListener("pointercancel",()=>endDrag(false));
+progressWrap.addEventListener("keydown",e=>{if(!soundOn)return;if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();e.stopPropagation();seekFilm(filmPos()+(e.key==="ArrowRight"?10000:-10000))}});
+/* episodes menu */
+const epList=document.getElementById("epList");
+FILM.forEach((f,i)=>{const b=document.createElement("button");b.type="button";b.className="epItem";b.innerHTML=`<span class="epNum">${i+1}</span><span class="epTitle">${CHAPTERS[i]}</span><span class="epLen">${fmt(CH_LEN[i])}</span>`;b.onclick=()=>{closeEp();switchTo(i,0,true)};epList.appendChild(b)});
+function renderEp(){[...epList.children].forEach((b,i)=>{b.classList.toggle("now",i===cur);if(i===cur)b.setAttribute("aria-current","true");else b.removeAttribute("aria-current")})}
+function openEp(){renderEp();document.body.classList.add("ep");showControls()}
+function closeEp(){document.body.classList.remove("ep")}
+document.getElementById("epBtn").onclick=()=>document.body.classList.contains("ep")?closeEp():openEp();
+document.getElementById("epClose").onclick=closeEp;document.getElementById("epBack").onclick=closeEp;
 document.getElementById("letterBtn").onclick=()=>{document.getElementById("letter").classList.add("open");if(playingSlide>=0&&!isPaused)togglePause()};
 document.getElementById("letterClose").onclick=()=>document.getElementById("letter").classList.remove("open");
 /* the song: from 2:14, begins with the final section */
@@ -1751,8 +1824,14 @@ document.getElementById("music").addEventListener("ended",e=>{e.target.currentTi
     setTimeout(()=>$("start").click(),4200)}
   $("gOk").onclick=tryIt;$("gIn").addEventListener("keydown",e=>{if(e.key==="Enter")tryIt()});$("gIn").addEventListener("input",()=>$("gErr").textContent="");
 })();
-document.getElementById("start").onclick=()=>{soundOn=true;{const m=document.getElementById("music");if(m.dataset.on!=="1"){m.muted=vo.muted;m.volume=.7;m.play().then(()=>{m.dataset.on="1"}).catch(()=>{})}}document.body.classList.add("playing");if("speechSynthesis" in window){const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}document.getElementById("intro").classList.add("gone");play(0);document.querySelectorAll(".slide").forEach(s=>io.observe(s))};
+document.getElementById("start").onclick=()=>{soundOn=true;{const m=document.getElementById("music");if(m.dataset.on!=="1"){m.muted=vo.muted;m.volume=.7;m.play().then(()=>{m.dataset.on="1"}).catch(()=>{})}}document.body.classList.add("playing");if("speechSynthesis" in window){const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}document.getElementById("intro").classList.add("gone");startFx();play(0);syncSong(true)};
 
+/* clean start: always at the top, then reveal the welcome page once fonts are ready */
+scrollTo(0,0);document.getElementById("deck").scrollTop=0;
+(function(){const L=document.getElementById("loader");let gone=false;const done=()=>{if(gone)return;gone=true;scrollTo(0,0);L.classList.add("done");setTimeout(()=>L.remove(),700)};
+  const fonts=document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve();
+  Promise.race([fonts.then(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))),new Promise(r=>setTimeout(r,3500))]).then(done,done)})();
+addEventListener("pageshow",e=>{if(e.persisted)location.reload()});
 </script>
 </body>
 </html>
